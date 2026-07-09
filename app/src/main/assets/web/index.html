@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>LAN Remote</title>
+<style>
+  body { margin:0; background:#111; color:#eee; font-family:sans-serif;
+         display:flex; flex-direction:column; align-items:center; }
+  #screen { touch-action:none; background:#000; max-width:100vw; max-height:80vh; cursor:crosshair; }
+  #bar { display:flex; gap:8px; padding:8px; flex-wrap:wrap; justify-content:center; }
+  button { padding:10px 16px; font-size:16px; }
+  #hint { font-size:12px; opacity:.6; padding-bottom:8px; }
+  #status { font-size:12px; opacity:.6; padding:4px; }
+</style>
+</head>
+<body>
+  <div id="status">connecting…</div>
+  <canvas id="screen"></canvas>
+  <div id="bar">
+    <button data-key="back">Back</button>
+    <button data-key="home">Home</button>
+    <button data-key="recents">Recents</button>
+    <button id="audioBtn">Enable audio</button>
+  </div>
+  <div id="hint">Click/drag to control. Type to send text (Backspace = Back).</div>
+  <script src="opus-decoder.min.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

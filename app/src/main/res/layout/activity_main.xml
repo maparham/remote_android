@@ -33,6 +33,11 @@
             android:textSize="15sp"
             android:textStyle="bold" />
 
+        <!-- Update banner (shown only when a newer GitHub release exists) -->
+        <include
+            android:id="@+id/updateBanner"
+            layout="@layout/update_banner" />
+
         <!-- Control-disabled warning (shown only when the Accessibility service is off) -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/controlWarn"

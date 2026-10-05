@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">LAN Remote</string>
+    <string name="update_available">LAN Remote v%1$s is available</string>
+    <string name="update_reenable_hint">You will need to re-enable the accessibility service after updating.</string>
+    <string name="update_action">Update</string>
+    <string name="update_later">Later</string>
+    <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_installing">Opening installer…</string>
 </resources>

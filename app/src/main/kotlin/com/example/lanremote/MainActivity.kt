@@ -15,9 +15,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
 import com.example.lanremote.databinding.ActivityMainBinding
 import com.example.lanremote.server.NetworkUtil
 import com.example.lanremote.server.RemoteServer
+import com.example.lanremote.update.UpdateManager
+import com.example.lanremote.update.UpdateState
 import com.example.lanremote.video.CaptureService
 import java.util.Locale
 
@@ -25,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
     private var server: RemoteServer? = null
     private var sharing = false
+    private lateinit var updates: UpdateManager
     private val port = 8080
 
     private val ui = Handler(Looper.getMainLooper())
@@ -71,12 +75,17 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
         b.shareBtn.setOnClickListener { shareLink() }
+        updates = UpdateManager(this, lifecycleScope, ::renderUpdate)
+        b.updateBanner.updateBtn.setOnClickListener { updates.update() }
+        b.updateBanner.laterBtn.setOnClickListener { updates.dismiss() }
+        updates.checkForUpdate()
         renderIdle()
     }
 
     override fun onResume() {
         super.onResume()
         refreshControlState()
+        updates.onResume()
     }
 
     /** True when the LAN Remote AccessibilityService is enabled (required for taps/typing). */
@@ -95,6 +104,41 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshControlState() {
         b.controlWarn.visibility = if (isControlEnabled()) View.GONE else View.VISIBLE
+    }
+
+    private fun renderUpdate(s: UpdateState) {
+        val ub = b.updateBanner
+        val info = s.info
+        if (info == null) {
+            ub.root.visibility = View.GONE
+            return
+        }
+        ub.root.visibility = View.VISIBLE
+        ub.updateTitle.text = getString(R.string.update_available, info.versionName)
+        ub.updateProgress.visibility = if (s is UpdateState.Downloading) View.VISIBLE else View.GONE
+        when (s) {
+            is UpdateState.Downloading -> {
+                ub.updateProgress.setProgressCompat(s.percent, true)
+                ub.updateMessage.text = getString(R.string.update_downloading, s.percent)
+                ub.updateBtn.isEnabled = false
+                ub.laterBtn.isEnabled = false
+            }
+            is UpdateState.Installing -> {
+                ub.updateMessage.text = getString(R.string.update_installing)
+                ub.updateBtn.isEnabled = false
+                ub.laterBtn.isEnabled = false
+            }
+            is UpdateState.Failed -> {
+                ub.updateMessage.text = s.message
+                ub.updateBtn.isEnabled = true
+                ub.laterBtn.isEnabled = true
+            }
+            else -> {
+                ub.updateMessage.text = getString(R.string.update_reenable_hint)
+                ub.updateBtn.isEnabled = true
+                ub.laterBtn.isEnabled = true
+            }
+        }
     }
 
     private fun requestConsent() {

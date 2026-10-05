@@ -3,6 +3,7 @@ package com.example.lanremote
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
@@ -148,7 +149,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestConsent() {
         val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        projectionLauncher.launch(mpm.createScreenCaptureIntent())
+        // Android 14+: ask for the whole display so the consent dialog skips the
+        // "Share one app / Share entire screen" choice. Remote control needs the full screen,
+        // and users who can't read the dialog's language shouldn't have to pick an option.
+        val intent = if (Build.VERSION.SDK_INT >= 34) {
+            mpm.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay())
+        } else {
+            mpm.createScreenCaptureIntent()
+        }
+        projectionLauncher.launch(intent)
     }
 
     private fun startSharing(code: Int, data: Intent) {

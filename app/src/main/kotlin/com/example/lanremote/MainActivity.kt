@@ -15,6 +15,8 @@ import android.text.TextUtils
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.lanremote.databinding.ActivityMainBinding
@@ -76,8 +78,18 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
         b.shareBtn.setOnClickListener { shareLink() }
+        b.langBtn.setOnClickListener { switchLanguage() }
         setupQualityPicker()
         renderIdle()
+    }
+
+    /**
+     * Toggles between English and Persian. AppCompat persists the choice and recreates the
+     * activity, which would stop an active share — so the button is disabled while sharing.
+     */
+    private fun switchLanguage() {
+        val target = getString(R.string.lang_switch_target)
+        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(target))
     }
 
     private var prefsListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
@@ -181,7 +193,7 @@ class MainActivity : AppCompatActivity() {
             b.warn.visibility = android.view.View.GONE
         } else {
             b.warn.visibility = android.view.View.VISIBLE
-            b.warn.text = "⚠ Not on Wi-Fi/LAN — this looks like a cellular address a browser can't reach. Connect the phone to Wi-Fi."
+            b.warn.setText(R.string.not_on_lan)
         }
 
         // QR of the URL.
@@ -193,7 +205,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         b.statsCard.alpha = 1f
-        b.toggle.text = "Stop sharing"
+        b.toggle.setText(R.string.stop_sharing)
+        b.langBtn.isEnabled = false
         ui.post(poller)
     }
 
@@ -210,18 +223,14 @@ class MainActivity : AppCompatActivity() {
         val url = currentUrl ?: return
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "LAN Remote link")
-            putExtra(
-                Intent.EXTRA_TEXT,
-                "Control my screen on the same network: $url\n" +
-                    "Open it in a browser (works while I'm sharing)."
-            )
+            putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject))
+            putExtra(Intent.EXTRA_TEXT, getString(R.string.share_text, url))
         }
-        startActivity(Intent.createChooser(send, "Share connection link"))
+        startActivity(Intent.createChooser(send, getString(R.string.share_chooser)))
     }
 
     private fun renderIdle() {
-        b.status.text = "● Idle"
+        b.status.setText(R.string.status_idle)
         b.status.setTextColor(getColor(R.color.idle))
         b.url.text = "—"
         currentUrl = null
@@ -230,7 +239,8 @@ class MainActivity : AppCompatActivity() {
         b.qrHint.visibility = android.view.View.GONE
         b.shareBtn.visibility = android.view.View.GONE
         b.statsCard.alpha = 0.5f
-        b.toggle.text = "Start sharing"
+        b.toggle.setText(R.string.start_sharing)
+        b.langBtn.isEnabled = true
         b.statViewer.text = "—"
         b.statVideo.text = "—"
         b.statFps.text = "—"
@@ -242,11 +252,11 @@ class MainActivity : AppCompatActivity() {
     private fun updateStats() {
         if (!sharing) return
         val elapsed = (SystemClock.elapsedRealtime() - sessionStart) / 1000
-        b.status.text = "● Sharing · ${formatDuration(elapsed)}"
+        b.status.text = getString(R.string.status_sharing, formatDuration(elapsed))
         b.status.setTextColor(getColor(R.color.ok))
 
         val connected = Stats.viewerConnected
-        b.statViewer.text = if (connected) "Connected" else "Waiting…"
+        b.statViewer.setText(if (connected) R.string.viewer_connected else R.string.viewer_waiting)
         b.statViewer.setTextColor(getColor(if (connected) R.color.ok else R.color.text_secondary))
 
         b.statVideo.text = if (connected) "${Stats.videoMode} · ${Stats.width}×${Stats.height}" else "—"
@@ -270,7 +280,7 @@ class MainActivity : AppCompatActivity() {
         lastFrames = frames
         lastVideoBytes = vbytes
 
-        b.statAudio.text = if (Stats.audioActive) "On" else "Off"
+        b.statAudio.setText(if (Stats.audioActive) R.string.audio_on else R.string.audio_off)
         b.statAudio.setTextColor(getColor(if (Stats.audioActive) R.color.ok else R.color.text_secondary))
 
         b.statData.text = formatBytes(Stats.videoBytes + Stats.audioBytes)

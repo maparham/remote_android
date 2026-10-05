@@ -17,6 +17,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.view.Display
+import com.example.lanremote.R
 import com.example.lanremote.Stats
 import java.util.concurrent.CopyOnWriteArraySet
 
@@ -258,11 +259,11 @@ class CaptureService : Service() {
     private fun buildNotification(): Notification {
         val mgr = getSystemService(NotificationManager::class.java)
         mgr.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Screen sharing", NotificationManager.IMPORTANCE_LOW)
+            NotificationChannel(CHANNEL, getString(R.string.notif_channel), NotificationManager.IMPORTANCE_LOW)
         )
         return Notification.Builder(this, CHANNEL)
-            .setContentTitle("LAN Remote")
-            .setContentText("Screen is being shared on your LAN")
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(getString(R.string.notif_text))
             .setSmallIcon(android.R.drawable.ic_menu_view)
             .setOngoing(true)
             .build()

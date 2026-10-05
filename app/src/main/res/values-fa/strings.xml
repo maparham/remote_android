@@ -1,0 +1,57 @@
+<resources>
+    <!-- Language toggle: label shows the language you switch TO -->
+    <string name="lang_toggle">EN</string>
+    <string name="lang_toggle_desc">تغییر به انگلیسی</string>
+    <string name="lang_switch_target">en</string>
+
+    <!-- Status -->
+    <string name="status_idle">● غیرفعال</string>
+    <string name="status_sharing">● در حال اشتراک‌گذاری · %1$s</string>
+
+    <!-- Control warning -->
+    <string name="control_off_title">⚠ کنترل از راه دور خاموش است</string>
+    <string name="control_off_body">صفحه را می‌بینید، اما لمس و تایپ کار نمی‌کند. برای فعال کردن کنترل، سرویس دسترس‌پذیری LAN Remote را روشن کنید.</string>
+    <string name="enable_control">فعال کردن کنترل</string>
+
+    <!-- Connection card -->
+    <string name="open_in_browser">در مرورگری روی همین شبکه باز کنید</string>
+    <string name="qr_desc">کد QR اتصال</string>
+    <string name="scan_to_connect">برای اتصال اسکن کنید</string>
+    <string name="share_link">اشتراک‌گذاری لینک</string>
+    <string name="not_on_lan">⚠ به Wi-Fi/LAN وصل نیستید — این آدرس به نظر می‌رسد مربوط به شبکه موبایل باشد و مرورگر به آن دسترسی ندارد. گوشی را به Wi-Fi وصل کنید.</string>
+    <string name="share_subject">لینک LAN Remote</string>
+    <string name="share_text">صفحه گوشی من را روی همین شبکه کنترل کنید: %1$s\nآن را در مرورگر باز کنید (تا زمانی که اشتراک‌گذاری فعال است کار می‌کند).</string>
+    <string name="share_chooser">اشتراک‌گذاری لینک اتصال</string>
+
+    <!-- Session card -->
+    <string name="session">جلسه</string>
+    <string name="stat_viewer">بیننده</string>
+    <string name="stat_video">ویدیو</string>
+    <string name="stat_fps">نرخ فریم</string>
+    <string name="stat_bitrate">نرخ بیت</string>
+    <string name="stat_audio">صدا</string>
+    <string name="stat_data">داده ارسال‌شده</string>
+    <string name="viewer_connected">متصل</string>
+    <string name="viewer_waiting">در انتظار…</string>
+    <string name="audio_on">روشن</string>
+    <string name="audio_off">خاموش</string>
+
+    <!-- Stream quality card -->
+    <string name="stream_quality">کیفیت پخش</string>
+    <string name="resolution">وضوح تصویر</string>
+    <string name="frame_rate">نرخ فریم</string>
+    <string name="jpeg_quality">کیفیت JPEG (فقط در حالت MJPEG)</string>
+    <string name="jpeg_low">کم</string>
+    <string name="jpeg_med">متوسط</string>
+    <string name="jpeg_high">زیاد</string>
+    <string name="quality_hint">تغییرات بلافاصله اعمال می‌شوند، حتی هنگام اشتراک‌گذاری. مقادیر پایین‌تر پهنای باند و پردازنده کمتری مصرف می‌کنند.</string>
+
+    <!-- Bottom -->
+    <string name="start_sharing">شروع اشتراک‌گذاری</string>
+    <string name="stop_sharing">توقف اشتراک‌گذاری</string>
+    <string name="no_password_warning">بدون رمز عبور — هر کسی روی این شبکه می‌تواند هنگام اشتراک‌گذاری وصل شود. فقط از شبکه‌های مورد اعتماد استفاده کنید.</string>
+
+    <!-- Notification -->
+    <string name="notif_channel">اشتراک‌گذاری صفحه</string>
+    <string name="notif_text">صفحه شما در حال اشتراک‌گذاری روی شبکه محلی است</string>
+</resources>

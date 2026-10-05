@@ -2,6 +2,7 @@ package com.example.lanremote
 
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
@@ -20,6 +21,8 @@ import com.example.lanremote.server.NetworkUtil
 import com.example.lanremote.server.RemoteServer
 import com.example.lanremote.video.CaptureService
 import com.example.lanremote.video.QualityPrefs
+import com.example.lanremote.video.StreamSettings
+import com.google.android.material.button.MaterialButtonToggleGroup
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -72,32 +75,52 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
         b.shareBtn.setOnClickListener { shareLink() }
-        setupScalePicker()
+        setupQualityPicker()
         renderIdle()
     }
 
+    private var prefsListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
+    /** True while the pickers are being updated from prefs, so that doesn't echo back as a save. */
+    private var syncingPicker = false
+
     private val scaleButtons: Map<Int, Int>
         get() = mapOf(100 to b.scale100.id, 75 to b.scale75.id, 50 to b.scale50.id)
+    private val fpsButtons: Map<Int, Int>
+        get() = mapOf(15 to b.fps15.id, 30 to b.fps30.id, 60 to b.fps60.id)
+    private val jpegButtons: Map<Int, Int>
+        get() = mapOf(40 to b.jpegLow.id, 55 to b.jpegMed.id, 75 to b.jpegHigh.id)
 
-    /** Stream resolution picker: restores the saved choice and persists changes immediately. */
-    private fun setupScalePicker() {
-        val saved = QualityPrefs.scalePercent(this)
-        scaleButtons[saved]?.let { b.scaleGroup.check(it) }
-        b.scaleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener
-            val percent = scaleButtons.entries.firstOrNull { it.value == checkedId }?.key ?: return@addOnButtonCheckedListener
-            QualityPrefs.setScalePercent(this, percent)
+    /**
+     * Stream quality pickers. Changes are saved immediately and the capture service applies
+     * them live. Changes made from a browser show up here through the prefs listener.
+     */
+    private fun setupQualityPicker() {
+        renderSettings(QualityPrefs.load(this))
+        bindPicker(b.scaleGroup, { scaleButtons }) { s, v -> s.copy(scalePercent = v) }
+        bindPicker(b.fpsGroup, { fpsButtons }) { s, v -> s.copy(fps = v) }
+        bindPicker(b.jpegGroup, { jpegButtons }) { s, v -> s.copy(jpegQuality = v) }
+        prefsListener = QualityPrefs.listen(this) { renderSettings(it) }
+    }
+
+    private fun bindPicker(
+        group: MaterialButtonToggleGroup,
+        options: () -> Map<Int, Int>,
+        apply: (StreamSettings, Int) -> StreamSettings
+    ) {
+        group.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked || syncingPicker) return@addOnButtonCheckedListener
+            val value = options().entries.firstOrNull { it.value == checkedId }?.key
+                ?: return@addOnButtonCheckedListener
+            QualityPrefs.save(this, apply(QualityPrefs.load(this), value))
         }
     }
 
-    /** The service reads the scale once at start, so lock the picker while sharing. */
-    private fun setScalePickerEnabled(enabled: Boolean) {
-        for (i in 0 until b.scaleGroup.childCount) b.scaleGroup.getChildAt(i).isEnabled = enabled
-        b.qualityCard.alpha = if (enabled) 1f else 0.5f
-        b.scaleHint.text = if (enabled)
-            "Lower values use less bandwidth and CPU. Applies when sharing starts."
-        else
-            "Stop sharing to change the resolution."
+    private fun renderSettings(s: StreamSettings) {
+        syncingPicker = true
+        scaleButtons[s.scalePercent]?.let { b.scaleGroup.check(it) }
+        fpsButtons[s.fps]?.let { b.fpsGroup.check(it) }
+        jpegButtons[s.jpegQuality]?.let { b.jpegGroup.check(it) }
+        syncingPicker = false
     }
 
     override fun onResume() {
@@ -161,7 +184,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         b.statsCard.alpha = 1f
-        setScalePickerEnabled(false)
         b.toggle.text = "Stop sharing"
         ui.post(poller)
     }
@@ -199,7 +221,6 @@ class MainActivity : AppCompatActivity() {
         b.qrHint.visibility = android.view.View.GONE
         b.shareBtn.visibility = android.view.View.GONE
         b.statsCard.alpha = 0.5f
-        setScalePickerEnabled(true)
         b.toggle.text = "Start sharing"
         b.statViewer.text = "—"
         b.statVideo.text = "—"
@@ -266,6 +287,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        prefsListener?.let { QualityPrefs.unlisten(this, it) }
         ui.removeCallbacks(poller)
         if (sharing) stopSharing()
         super.onDestroy()

@@ -1,52 +1,45 @@
 package com.example.lanremote.video
 
-import android.hardware.display.DisplayManager
-import android.hardware.display.VirtualDisplay
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
-import android.media.projection.MediaProjection
 import android.os.Bundle
 import android.view.Surface
 
+/** H.264 encoder fed by an input surface. Emits self-contained keyframes (SPS/PPS + IDR). */
 class ScreenEncoder(
     private val width: Int,
     private val height: Int,
-    private val densityDpi: Int,
-    private val bitrate: Int = 6_000_000
+    private val fps: Int,
+    private val bitrate: Int
 ) : CapturePipeline {
     private var codec: MediaCodec? = null
-    private var surface: Surface? = null
-    private var display: VirtualDisplay? = null
+    private var inputSurface: Surface? = null
     @Volatile private var running = false
     private var thread: Thread? = null
 
-    fun start(
-        projection: MediaProjection,
-        onMeta: (VideoMeta) -> Unit,
-        onFrame: (Boolean, ByteArray) -> Unit
-    ) {
+    override val surface: Surface
+        get() = inputSurface ?: error("ScreenEncoder not started")
+
+    fun start(onFrame: (Boolean, ByteArray) -> Unit) {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
             setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
-            setInteger(MediaFormat.KEY_FRAME_RATE, 30)
+            setInteger(MediaFormat.KEY_FRAME_RATE, fps)
+            // Caps how many surface frames reach the encoder; KEY_FRAME_RATE alone is only a hint.
+            setFloat(MediaFormat.KEY_MAX_FPS_TO_ENCODER, fps.toFloat())
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
             // Pin baseline profile so the client's avc1.42E01E codec string is honest.
             setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline)
             setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel41)
-            // Every IDR carries SPS/PPS so a late-joining client can decode. (API 29+)
+            // Ask for SPS/PPS on every IDR; KeyframeAssembler covers encoders that ignore this.
             setInteger(MediaFormat.KEY_PREPEND_HEADER_TO_SYNC_FRAMES, 1)
         }
         val c = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
         c.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        surface = c.createInputSurface()
+        inputSurface = c.createInputSurface()
         c.start()
         codec = c
-        display = projection.createVirtualDisplay(
-            "lanremote", width, height, densityDpi,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, surface, null, null
-        )
-        onMeta(VideoMeta(width, height))
         running = true
         thread = Thread { drain(onFrame) }.also { it.start() }
     }
@@ -54,6 +47,7 @@ class ScreenEncoder(
     private fun drain(onFrame: (Boolean, ByteArray) -> Unit) {
         val c = codec ?: return
         val info = MediaCodec.BufferInfo()
+        val assembler = KeyframeAssembler()
         while (running) {
             val idx = try {
                 c.dequeueOutputBuffer(info, 10_000)
@@ -67,9 +61,9 @@ class ScreenEncoder(
                     buf.limit(info.offset + info.size)
                     val data = ByteArray(info.size)
                     buf.get(data)
-                    val isKey = (info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0 ||
-                        (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0
-                    onFrame(isKey, data)
+                    val isConfig = (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0
+                    val isKey = (info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
+                    assembler.process(isConfig, isKey, data)?.let { (key, bytes) -> onFrame(key, bytes) }
                 }
                 c.releaseOutputBuffer(idx, false)
             }
@@ -89,11 +83,9 @@ class ScreenEncoder(
     override fun stop() {
         running = false
         thread?.join(500)
-        try { display?.release() } catch (_: Exception) {}
         try { codec?.stop(); codec?.release() } catch (_: Exception) {}
-        surface?.release()
+        inputSurface?.release()
         codec = null
-        surface = null
-        display = null
+        inputSurface = null
     }
 }

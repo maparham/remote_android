@@ -2,46 +2,36 @@ package com.example.lanremote.video
 
 import android.graphics.Bitmap
 import android.graphics.PixelFormat
-import android.hardware.display.DisplayManager
-import android.hardware.display.VirtualDisplay
 import android.media.ImageReader
-import android.media.projection.MediaProjection
 import android.os.Handler
 import android.os.HandlerThread
+import android.view.Surface
 import java.io.ByteArrayOutputStream
 
 /**
- * MJPEG capture: mirrors the screen into an ImageReader, compresses each frame to JPEG.
- * Works in any browser over plain HTTP (no WebCodecs / secure context required).
+ * MJPEG capture: the screen is mirrored into an ImageReader and each frame is compressed to
+ * JPEG. Works in any browser over plain HTTP (no WebCodecs / secure context required).
  */
 class JpegCapturer(
     private val width: Int,
     private val height: Int,
-    private val densityDpi: Int,
-    private val quality: Int = 55,
-    private val minFrameIntervalMs: Long = 66 // ~15 fps cap
+    private val quality: Int,
+    fps: Int
 ) : CapturePipeline {
-
+    private val minFrameIntervalMs: Long = 1000L / fps.coerceAtLeast(1)
     private var reader: ImageReader? = null
-    private var display: VirtualDisplay? = null
     private var thread: HandlerThread? = null
     private var lastEmit = 0L
 
-    fun start(
-        projection: MediaProjection,
-        onMeta: (VideoMeta) -> Unit,
-        onFrame: (ByteArray) -> Unit
-    ) {
+    override val surface: Surface
+        get() = reader?.surface ?: error("JpegCapturer not started")
+
+    fun start(onFrame: (ByteArray) -> Unit) {
         val ht = HandlerThread("mjpeg").also { it.start() }
         thread = ht
         val handler = Handler(ht.looper)
         val r = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
         reader = r
-        display = projection.createVirtualDisplay(
-            "lanremote-mjpeg", width, height, densityDpi,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, r.surface, null, handler
-        )
-        onMeta(VideoMeta(width, height))
         r.setOnImageAvailableListener({ reader ->
             val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
             try {
@@ -71,10 +61,8 @@ class JpegCapturer(
     }
 
     override fun stop() {
-        try { display?.release() } catch (_: Exception) {}
         try { reader?.close() } catch (_: Exception) {}
         thread?.quitSafely()
-        display = null
         reader = null
         thread = null
     }

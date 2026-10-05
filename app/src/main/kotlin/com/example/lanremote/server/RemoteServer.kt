@@ -2,11 +2,13 @@ package com.example.lanremote.server
 
 import android.content.Context
 import com.example.lanremote.Stats
+import com.example.lanremote.control.ControlEvent
 import com.example.lanremote.control.ControlEventParser
 import com.example.lanremote.control.ControlService
-import com.example.lanremote.control.CoordinateMapper
 import com.example.lanremote.video.CaptureService
+import com.example.lanremote.video.QualityPrefs
 import com.example.lanremote.video.VideoFrame
+import com.example.lanremote.video.VideoMeta
 import io.ktor.http.ContentType
 import io.ktor.server.application.call
 import io.ktor.server.application.install
@@ -54,21 +56,31 @@ class RemoteServer(private val context: Context) {
         val meta = CaptureService.meta ?: return
         val controller = CaptureService.controller ?: return
         send(Frame.Text(meta.toJson()))
-        val queue = Channel<ByteArray>(capacity = 8)
-        val requestKeyframe = controller.startH264 { key, nal ->
-            queue.trySend(VideoFrame.encode(key, nal))
-        } ?: return
+        val queue = Channel<Frame>(capacity = 8)
+        // Size changes (resolution setting, rotation) arrive as a new meta text frame; the
+        // client resets its decoder and waits for the next keyframe.
+        val onMeta: (VideoMeta) -> Unit = { m -> queue.trySend(Frame.Text(m.toJson())) }
+        val sink: (Boolean, ByteArray) -> Unit = { key, nal ->
+            queue.trySend(Frame.Binary(true, VideoFrame.encode(key, nal)))
+        }
+        controller.addMetaListener(onMeta)
+        val requestKeyframe = controller.startH264(sink)
+        if (requestKeyframe == null) {
+            controller.removeMetaListener(onMeta)
+            return
+        }
         Stats.onVideoStart("H.264")
         // Force an immediate IDR (carrying SPS/PPS) so this late-joining client can decode at once.
         requestKeyframe()
         try {
             for (frame in queue) {
-                send(Frame.Binary(true, frame))
-                Stats.onVideoFrame(frame.size)
+                send(frame)
+                if (frame is Frame.Binary) Stats.onVideoFrame(frame.data.size)
             }
         } finally {
+            controller.removeMetaListener(onMeta)
             Stats.onVideoStop()
-            controller.stopPipeline()
+            controller.stopPipeline(sink)
             queue.close()
         }
     }
@@ -77,17 +89,21 @@ class RemoteServer(private val context: Context) {
         val meta = CaptureService.meta ?: return
         val controller = CaptureService.controller ?: return
         send(Frame.Text(meta.toJson()))
-        val queue = Channel<ByteArray>(capacity = 4)
-        controller.startMjpeg { jpeg -> queue.trySend(jpeg) }
+        val queue = Channel<Frame>(capacity = 4)
+        val onMeta: (VideoMeta) -> Unit = { m -> queue.trySend(Frame.Text(m.toJson())) }
+        val sink: (ByteArray) -> Unit = { jpeg -> queue.trySend(Frame.Binary(true, jpeg)) }
+        controller.addMetaListener(onMeta)
+        controller.startMjpeg(sink)
         Stats.onVideoStart("MJPEG")
         try {
-            for (jpeg in queue) {
-                send(Frame.Binary(true, jpeg))
-                Stats.onVideoFrame(jpeg.size)
+            for (frame in queue) {
+                send(frame)
+                if (frame is Frame.Binary) Stats.onVideoFrame(frame.data.size)
             }
         } finally {
+            controller.removeMetaListener(onMeta)
             Stats.onVideoStop()
-            controller.stopPipeline()
+            controller.stopPipeline(sink)
             queue.close()
         }
     }
@@ -116,14 +132,27 @@ class RemoteServer(private val context: Context) {
     }
 
     private suspend fun DefaultWebSocketServerSession.serveControl() {
-        val meta = CaptureService.meta ?: return
-        val mapper = CoordinateMapper(meta.width, meta.height)
-        for (frame in incoming) {
-            if (frame is Frame.Text) {
-                ControlEventParser.parse(frame.readText())?.let {
-                    ControlService.dispatch(it, mapper)
+        CaptureService.controller ?: return
+        // Settings flow both ways: the viewer gets the current values now and on every change
+        // (from either the phone UI or another viewer), and may send "quality" messages.
+        send(Frame.Text(QualityPrefs.load(this@RemoteServer.context).toJson()))
+        val prefsListener = QualityPrefs.listen(this@RemoteServer.context) { settings ->
+            outgoing.trySend(Frame.Text(settings.toJson()))
+        }
+        try {
+            for (frame in incoming) {
+                if (frame !is Frame.Text) continue
+                when (val event = ControlEventParser.parse(frame.readText())) {
+                    null -> Unit
+                    is ControlEvent.Quality -> {
+                        val ctx = this@RemoteServer.context
+                        QualityPrefs.save(ctx, QualityPrefs.load(ctx).merge(event.scale, event.fps, event.jpegQuality))
+                    }
+                    else -> ControlService.dispatch(event)
                 }
             }
+        } finally {
+            QualityPrefs.unlisten(this@RemoteServer.context, prefsListener)
         }
     }
 

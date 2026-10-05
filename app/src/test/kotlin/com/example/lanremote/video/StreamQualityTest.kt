@@ -23,14 +23,19 @@ class StreamQualityTest {
         assertEquals(Pair(2, 2), StreamQuality.scaledSize(1, 1, 50))
     }
 
-    @Test fun bitrateScalesWithPixelCountFromSixMbpsAtFullHd() {
-        assertEquals(6_000_000, StreamQuality.bitrateFor(1080, 2400))
-        assertEquals(1_500_000, StreamQuality.bitrateFor(540, 1200))
+    @Test fun bitrateScalesWithPixelCountFromSixMbpsAtFullHdThirtyFps() {
+        assertEquals(6_000_000, StreamQuality.bitrateFor(1080, 2400, 30))
+        assertEquals(1_500_000, StreamQuality.bitrateFor(540, 1200, 30))
+    }
+
+    @Test fun bitrateScalesWithFrameRate() {
+        assertEquals(3_000_000, StreamQuality.bitrateFor(1080, 2400, 15))
+        assertEquals(12_000_000, StreamQuality.bitrateFor(1080, 2400, 60))
     }
 
     @Test fun bitrateIsClampedToSaneBounds() {
-        assertEquals(1_000_000, StreamQuality.bitrateFor(100, 100))
-        assertEquals(12_000_000, StreamQuality.bitrateFor(4000, 8000))
+        assertEquals(1_000_000, StreamQuality.bitrateFor(100, 100, 30))
+        assertEquals(12_000_000, StreamQuality.bitrateFor(4000, 8000, 30))
     }
 
     @Test fun unknownPercentFallsBackToFull() {

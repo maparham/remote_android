@@ -32,6 +32,16 @@ class ControlEventTest {
         assertEquals(ControlEvent.Text("hi"), e)
     }
 
+    @Test fun parsesQualityWithAllFields() {
+        val e = ControlEventParser.parse("""{"type":"quality","scale":50,"fps":15,"jpegQuality":40}""")
+        assertEquals(ControlEvent.Quality(50, 15, 40), e)
+    }
+
+    @Test fun parsesQualityWithSomeFieldsMissing() {
+        val e = ControlEventParser.parse("""{"type":"quality","fps":60}""")
+        assertEquals(ControlEvent.Quality(null, 60, null), e)
+    }
+
     @Test fun rejectsOutOfRange() {
         assertNull(ControlEventParser.parse("""{"type":"tap","x":1.5,"y":0.1}"""))
     }

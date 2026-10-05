@@ -12,7 +12,8 @@ function setStatus(t) { statusEl.textContent = t; }
 const canUseH264 = window.isSecureContext && ('VideoDecoder' in window);
 
 function fitCanvas(w, h) {
-  if (canvas.width !== w) { canvas.width = w; canvas.height = h; }
+  // Both sides are checked: rotation or a resolution change can alter either one.
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
 }
 
 if (canUseH264) {
@@ -23,32 +24,56 @@ if (canUseH264) {
 
 function startH264() {
   setStatus('H.264 mode — connecting…');
-  const decoder = new VideoDecoder({
-    output: (frame) => {
-      fitCanvas(frame.displayWidth, frame.displayHeight);
-      ctx.drawImage(frame, 0, 0);
-      frame.close();
-    },
-    error: (e) => { console.error('decoder', e); setStatus('decoder error: ' + e.message); },
-  });
+  let decoder = null;
+  let configured = false;
+
+  function newDecoder() {
+    decoder = new VideoDecoder({
+      output: (frame) => {
+        fitCanvas(frame.displayWidth, frame.displayHeight);
+        ctx.drawImage(frame, 0, 0);
+        frame.close();
+      },
+      // An error closes the decoder for good. Drop it and rebuild on the next keyframe
+      // (the phone sends one every 2 s) instead of leaving the stream frozen.
+      error: (e) => {
+        console.warn('decoder', e);
+        decoder = null;
+        configured = false;
+        setStatus('decoder error — waiting for next keyframe…');
+      },
+    });
+  }
+
+  // Called when the stream size changes: the next frames come from a new encoder.
+  function resetDecoder() {
+    configured = false;
+    if (decoder && decoder.state !== 'closed') {
+      try { decoder.reset(); } catch (e) { decoder = null; }
+    }
+  }
+
   const vsock = new WebSocket(`ws://${host}/video`);
   vsock.binaryType = 'arraybuffer';
-  let configured = false;
   vsock.onclose = () => setStatus('video disconnected');
   vsock.onerror = () => setStatus('video error');
   vsock.onmessage = (ev) => {
-    if (typeof ev.data === 'string') { meta = JSON.parse(ev.data); return; }
+    if (typeof ev.data === 'string') {
+      meta = JSON.parse(ev.data);
+      resetDecoder();
+      return;
+    }
     const buf = new Uint8Array(ev.data);
     const isKey = (buf[0] & 0x01) !== 0;
     const payload = buf.subarray(1);
-    // Wait for the first keyframe — deltas before it are undecodable, and the keyframe
-    // carries in-band SPS/PPS (encoder prepends headers to sync frames).
+    // Deltas before a keyframe are undecodable. Every keyframe carries SPS/PPS in-band.
     if (!configured) {
       if (!isKey) return;
+      if (!decoder) newDecoder();
       // No `description` => WebCodecs expects Annex-B start codes, which MediaCodec emits.
       decoder.configure({ codec: 'avc1.42E01E', optimizeForLatency: true });
       configured = true;
-      setStatus('streaming (H.264)');
+      setStatus(meta ? `streaming (H.264 · ${meta.width}×${meta.height})` : 'streaming (H.264)');
     }
     try {
       decoder.decode(new EncodedVideoChunk({
@@ -57,7 +82,8 @@ function startH264() {
         data: payload,
       }));
     } catch (e) {
-      console.error('decode', e);
+      console.warn('decode', e);
+      configured = false;
     }
   };
 }
@@ -77,8 +103,8 @@ function startMjpeg() {
       const bitmap = await createImageBitmap(new Blob([ev.data], { type: 'image/jpeg' }));
       fitCanvas(bitmap.width, bitmap.height);
       ctx.drawImage(bitmap, 0, 0);
+      setStatus(`streaming (MJPEG · ${bitmap.width}×${bitmap.height})`);
       bitmap.close();
-      setStatus('streaming (MJPEG)');
     } catch (e) {
       console.error('mjpeg', e);
     } finally {
@@ -90,6 +116,30 @@ function startMjpeg() {
 // ---- Control ----
 const csock = new WebSocket(`ws://${host}/control`);
 function send(obj) { if (csock.readyState === 1) csock.send(JSON.stringify(obj)); }
+
+// ---- Stream quality ----
+// The phone is the source of truth: it sends {"type":"settings",...} on connect and whenever
+// anyone (phone UI or any viewer) changes a value. Setting .value does not fire 'change',
+// so applying an update from the phone never echoes back.
+const qScale = document.getElementById('qScale');
+const qFps = document.getElementById('qFps');
+const qJpeg = document.getElementById('qJpeg');
+if (canUseH264) document.getElementById('qJpegWrap').style.display = 'none';
+
+csock.onmessage = (ev) => {
+  let msg;
+  try { msg = JSON.parse(ev.data); } catch (e) { return; }
+  if (msg.type === 'settings') {
+    qScale.value = String(msg.scale);
+    qFps.value = String(msg.fps);
+    qJpeg.value = String(msg.jpegQuality);
+  }
+};
+
+[qScale, qFps, qJpeg].forEach((el) => el.addEventListener('change', () => {
+  send({ type: 'quality', scale: +qScale.value, fps: +qFps.value, jpegQuality: +qJpeg.value });
+  el.blur(); // keep keyboard input going to the phone, not the select
+}));
 
 function norm(ev) {
   const r = canvas.getBoundingClientRect();
@@ -208,7 +258,7 @@ function onAudioMessage(ev) {
 }
 
 window.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'BUTTON') return;
+  if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
   if (e.key.length === 1) {
     send({ type: 'text', value: e.key });
     e.preventDefault();

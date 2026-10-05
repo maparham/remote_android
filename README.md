@@ -17,9 +17,13 @@ signaling server. Open a URL (or scan a QR code) and you're connected.
   sends the URL through any app (WhatsApp, Telegram, …).
 - **Live session stats**: viewer state, video mode + resolution, fps, bitrate,
   audio on/off, data sent.
-- **Stream resolution picker**: 100% / 75% / 50% of the display size. Lower
-  values cut bandwidth and CPU; the H.264 bitrate scales with pixel count.
-  The choice is saved and applied the next time sharing starts.
+- **Stream quality controls**: resolution (100% / 75% / 50% of the display),
+  frame rate (15 / 30 / 60 fps) and MJPEG JPEG quality (Low / Medium / High).
+  Set them on the phone or from the browser's quality bar; both stay in sync.
+  Changes apply live without stopping the share, and the H.264 bitrate follows
+  pixel count and frame rate.
+- **Rotation aware**: turning the phone rebuilds the stream at the new
+  orientation, and taps are always mapped to the real screen.
 
 ## How it works
 

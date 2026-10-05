@@ -207,6 +207,7 @@ class MainActivity : AppCompatActivity() {
         b.statsCard.alpha = 1f
         b.toggle.setText(R.string.stop_sharing)
         b.langBtn.isEnabled = false
+        b.langBtn.alpha = 0.4f
         ui.post(poller)
     }
 
@@ -241,6 +242,7 @@ class MainActivity : AppCompatActivity() {
         b.statsCard.alpha = 0.5f
         b.toggle.setText(R.string.start_sharing)
         b.langBtn.isEnabled = true
+        b.langBtn.alpha = 1f
         b.statViewer.text = "—"
         b.statVideo.text = "—"
         b.statFps.text = "—"

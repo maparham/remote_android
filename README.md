@@ -138,6 +138,63 @@ matters more the moment remote/VPN access (or a shared link) is used.
 - Native Android controller client (decodes the same H.264 via `MediaCodec`).
 - Internet reach: signaling server + TURN relay.
 
+## Updating
+
+On launch the app asks GitHub for the latest release. If it is newer than the
+installed version, a banner offers **Update**: the APK is downloaded, its SHA-256
+is checked against the release asset digest, and the system installer opens.
+Android always asks for confirmation; there is no silent install for sideloaded
+apps. The first time, Android will also ask you to allow LAN Remote to install
+unknown apps.
+
+> Updating disables the accessibility service (an Android security measure);
+> re-enable it afterwards. The app reminds you.
+
+## Releasing
+
+Updates only install over an existing app if both are signed with the **same
+key**, so releases must use a dedicated keystore, not the per-machine debug key.
+
+1. **Create the keystore once** and keep it safe (losing it means users must
+   uninstall to take the next update):
+
+   ```bash
+   keytool -genkeypair -v -keystore ~/keys/lanremote-release.jks -alias lanremote \
+     -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. **Create `keystore.properties`** in the repo root (git-ignored):
+
+   ```
+   storeFile=/Users/you/keys/lanremote-release.jks
+   storePassword=…
+   keyAlias=lanremote
+   keyPassword=…
+   ```
+
+   Without this file `assembleRelease` falls back to the debug key and prints a
+   warning. Never publish such a build.
+
+3. **Bump the version** in `app/build.gradle.kts`: `versionCode` +1,
+   `versionName` to `X.Y` or `X.Y.Z`. The update check compares the release tag
+   against `versionName`, so they must match exactly.
+
+4. **Build, tag and publish:**
+
+   ```bash
+   ./gradlew :app:assembleRelease
+   cp app/build/outputs/apk/release/app-release.apk lan-remote-<version>.apk
+   git tag v<version> && git push origin v<version>
+   gh release create v<version> lan-remote-<version>.apk --title "LAN Remote v<version>" --notes "..."
+   ```
+
+   Only the first `.apk` asset of the latest non-prerelease release is offered to
+   users. Mark test builds as pre-release so they are skipped.
+
+> **v0.1 note:** v0.1 was signed with a debug key. The first keystore-signed
+> release cannot install over it; say so in that release's notes and ask users to
+> uninstall once.
+
 ## Project layout
 
 - `MainActivity` — UI, session start/stop, QR, live stats, share link, control-state warning.
@@ -146,6 +203,9 @@ matters more the moment remote/VPN access (or a shared link) is used.
 - `video/` — `ScreenEncoder` (H.264), `JpegCapturer` (MJPEG), `AudioCapturer` (Opus),
   `CaptureService`, `CapturePipeline`, `VideoFrame`.
 - `server/` — `RemoteServer` (Ktor), `NetworkUtil`.
+- `update/` — `UpdateChecker` (GitHub Releases + version compare), `ApkDownloader`
+  (streaming download + SHA-256), `ApkInstaller`/`InstallResultReceiver`
+  (PackageInstaller session), `UpdateManager` (flow + banner state).
 - `assets/web/` — `index.html`, `client.js` (auto-selecting web client),
   `opus-decoder.min.js` (vendored WASM Opus decoder).
 - `docs/superpowers/` — design spec and implementation plan.
@@ -162,4 +222,5 @@ vanilla-TS/JS web client.
 ./gradlew :app:testDebugUnitTest
 ```
 
-Covers control-event parsing/validation, coordinate mapping, and NAL framing.
+Covers control-event parsing/validation, coordinate mapping, NAL framing, GitHub
+release parsing and version comparison, and APK download/verification.

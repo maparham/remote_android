@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -22,6 +23,9 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.example.lanremote.databinding.ActivityMainBinding
 import com.example.lanremote.server.NetworkUtil
 import com.example.lanremote.server.RemoteServer
+import com.example.lanremote.update.UpdateManager
+import com.example.lanremote.update.UpdateState
+import com.example.lanremote.update.Updates
 import com.example.lanremote.video.CaptureService
 import com.example.lanremote.video.QualityPrefs
 import com.example.lanremote.video.StreamSettings
@@ -32,6 +36,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
     private var server: RemoteServer? = null
     private var sharing = false
+    private lateinit var updates: UpdateManager
+    private val updateRenderer: (UpdateState) -> Unit = { renderUpdate(it) }
     private val port = 8080
 
     private val ui = Handler(Looper.getMainLooper())
@@ -79,6 +85,11 @@ class MainActivity : AppCompatActivity() {
         }
         b.shareBtn.setOnClickListener { shareLink() }
         b.langBtn.setOnClickListener { switchLanguage() }
+        updates = Updates.get(this)
+        updates.observe(updateRenderer)
+        b.updateBanner.updateBtn.setOnClickListener { onUpdateClicked() }
+        b.updateBanner.laterBtn.setOnClickListener { updates.dismiss() }
+        updates.checkForUpdate()
         setupQualityPicker()
         renderIdle()
     }
@@ -139,6 +150,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshControlState()
+        updates.onResume(packageManager.canRequestPackageInstalls())
     }
 
     /** True when the LAN Remote AccessibilityService is enabled (required for taps/typing). */
@@ -157,6 +169,53 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshControlState() {
         b.controlWarn.visibility = if (isControlEnabled()) View.GONE else View.VISIBLE
+    }
+
+    /** Sends the user to grant "install unknown apps" first if needed; the manager resumes on return. */
+    private fun onUpdateClicked() {
+        if (packageManager.canRequestPackageInstalls()) {
+            updates.update()
+        } else {
+            updates.awaitPermission()
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
+            )
+        }
+    }
+
+    private fun renderUpdate(s: UpdateState) {
+        val ub = b.updateBanner
+        val info = s.info
+        if (info == null) {
+            ub.root.visibility = View.GONE
+            return
+        }
+        ub.root.visibility = View.VISIBLE
+        ub.updateTitle.text = getString(R.string.update_available, info.versionName)
+        ub.updateProgress.visibility = if (s is UpdateState.Downloading) View.VISIBLE else View.GONE
+        when (s) {
+            is UpdateState.Downloading -> {
+                ub.updateProgress.setProgressCompat(s.percent, true)
+                ub.updateMessage.text = getString(R.string.update_downloading, s.percent)
+                ub.updateBtn.isEnabled = false
+                ub.laterBtn.isEnabled = false
+            }
+            is UpdateState.Installing -> {
+                ub.updateMessage.text = getString(R.string.update_installing)
+                ub.updateBtn.isEnabled = false
+                ub.laterBtn.isEnabled = false
+            }
+            is UpdateState.Failed -> {
+                ub.updateMessage.text = s.message
+                ub.updateBtn.isEnabled = true
+                ub.laterBtn.isEnabled = true
+            }
+            else -> {
+                ub.updateMessage.text = getString(R.string.update_reenable_hint)
+                ub.updateBtn.isEnabled = true
+                ub.laterBtn.isEnabled = true
+            }
+        }
     }
 
     private fun requestConsent() {
@@ -308,6 +367,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        updates.removeObserver(updateRenderer)
         prefsListener?.let { QualityPrefs.unlisten(this, it) }
         ui.removeCallbacks(poller)
         if (sharing) stopSharing()

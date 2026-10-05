@@ -54,4 +54,12 @@
     <!-- Notification -->
     <string name="notif_channel">اشتراک‌گذاری صفحه</string>
     <string name="notif_text">صفحه شما در حال اشتراک‌گذاری روی شبکه محلی است</string>
+
+    <!-- Update banner -->
+    <string name="update_available">نسخهٔ %1$s از LAN Remote در دسترس است</string>
+    <string name="update_reenable_hint">پس از به‌روزرسانی باید سرویس دسترس‌پذیری را دوباره روشن کنید.</string>
+    <string name="update_action">به‌روزرسانی</string>
+    <string name="update_later">بعداً</string>
+    <string name="update_downloading">در حال دانلود… %1$d%%</string>
+    <string name="update_installing">در حال باز کردن نصب‌کننده…</string>
 </resources>

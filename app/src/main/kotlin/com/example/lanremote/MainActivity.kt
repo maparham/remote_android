@@ -90,7 +90,8 @@ class MainActivity : AppCompatActivity() {
         updates.observe(updateRenderer)
         b.updateBanner.updateBtn.setOnClickListener { onUpdateClicked() }
         b.updateBanner.laterBtn.setOnClickListener { updates.dismiss() }
-        updates.checkForUpdate()
+        // Debug builds are signed with the debug key, so a release APK can never install over them.
+        if (!BuildConfig.DEBUG) updates.checkForUpdate()
         setupQualityPicker()
         renderIdle()
     }

@@ -14,21 +14,47 @@
         android:padding="20dp">
 
         <!-- Header -->
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="LAN Remote"
-            android:textColor="@color/text_primary"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:letterSpacing="-0.02" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/app_name"
+                android:textAlignment="viewStart"
+                android:textColor="@color/text_primary"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:letterSpacing="-0.02" />
+
+            <!-- Language switch: shows the language it switches to -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/langBtn"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="0dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="@string/lang_toggle"
+                android:contentDescription="@string/lang_toggle_desc"
+                android:textColor="@color/accent_soft"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                app:cornerRadius="12dp"
+                app:strokeColor="@color/card_stroke" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="● Idle"
+            android:text="@string/status_idle"
             android:textColor="@color/idle"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -60,7 +86,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="⚠ Remote control is off"
+                    android:text="@string/control_off_title"
                     android:textColor="@color/warn"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -69,7 +95,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:text="You'll see the screen but taps and typing won't work. Turn on the LAN Remote accessibility service to enable control."
+                    android:text="@string/control_off_body"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
 
@@ -78,7 +104,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="Enable control"
+                    android:text="@string/enable_control"
                     android:textColor="#1A1400"
                     android:textStyle="bold"
                     app:cornerRadius="12dp"
@@ -108,7 +134,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="OPEN IN A BROWSER ON THE SAME NETWORK"
+                    android:text="@string/open_in_browser"
                     android:textColor="@color/text_secondary"
                     android:textSize="11sp"
                     android:textStyle="bold"
@@ -124,6 +150,8 @@
                     android:textSize="22sp"
                     android:textStyle="bold"
                     android:fontFamily="monospace"
+                    android:textDirection="ltr"
+                    android:textAlignment="viewStart"
                     android:autoLink="none" />
 
                 <TextView
@@ -143,14 +171,14 @@
                     android:background="#FFFFFF"
                     android:padding="8dp"
                     android:visibility="gone"
-                    android:contentDescription="Connection QR code" />
+                    android:contentDescription="@string/qr_desc" />
 
                 <TextView
                     android:id="@+id/qrHint"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="Scan to connect"
+                    android:text="@string/scan_to_connect"
                     android:textColor="@color/text_secondary"
                     android:textSize="12sp"
                     android:visibility="gone" />
@@ -160,7 +188,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="Share link"
+                    android:text="@string/share_link"
                     android:textColor="@color/text_primary"
                     android:textStyle="bold"
                     android:visibility="gone"
@@ -193,7 +221,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="SESSION"
+                    android:text="@string/session"
                     android:textColor="@color/text_secondary"
                     android:textSize="11sp"
                     android:textStyle="bold"
@@ -203,7 +231,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginTop="14dp">
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                        android:text="Viewer" android:textColor="@color/text_secondary" android:textSize="15sp" />
+                        android:text="@string/stat_viewer" android:textColor="@color/text_secondary" android:textSize="15sp" />
                     <TextView android:id="@+id/statViewer" android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="—" android:textColor="@color/text_primary" android:textSize="15sp" android:textStyle="bold" />
                 </LinearLayout>
@@ -211,7 +239,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginTop="10dp">
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                        android:text="Video" android:textColor="@color/text_secondary" android:textSize="15sp" />
+                        android:text="@string/stat_video" android:textColor="@color/text_secondary" android:textSize="15sp" />
                     <TextView android:id="@+id/statVideo" android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="—" android:textColor="@color/text_primary" android:textSize="15sp" android:textStyle="bold" />
                 </LinearLayout>
@@ -219,7 +247,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginTop="10dp">
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                        android:text="Frame rate" android:textColor="@color/text_secondary" android:textSize="15sp" />
+                        android:text="@string/stat_fps" android:textColor="@color/text_secondary" android:textSize="15sp" />
                     <TextView android:id="@+id/statFps" android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="—" android:textColor="@color/text_primary" android:textSize="15sp" android:textStyle="bold" />
                 </LinearLayout>
@@ -227,7 +255,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginTop="10dp">
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                        android:text="Bitrate" android:textColor="@color/text_secondary" android:textSize="15sp" />
+                        android:text="@string/stat_bitrate" android:textColor="@color/text_secondary" android:textSize="15sp" />
                     <TextView android:id="@+id/statBitrate" android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="—" android:textColor="@color/text_primary" android:textSize="15sp" android:textStyle="bold" />
                 </LinearLayout>
@@ -235,7 +263,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginTop="10dp">
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                        android:text="Audio" android:textColor="@color/text_secondary" android:textSize="15sp" />
+                        android:text="@string/stat_audio" android:textColor="@color/text_secondary" android:textSize="15sp" />
                     <TextView android:id="@+id/statAudio" android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="—" android:textColor="@color/text_primary" android:textSize="15sp" android:textStyle="bold" />
                 </LinearLayout>
@@ -243,7 +271,7 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal" android:layout_marginTop="10dp">
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                        android:text="Data sent" android:textColor="@color/text_secondary" android:textSize="15sp" />
+                        android:text="@string/stat_data" android:textColor="@color/text_secondary" android:textSize="15sp" />
                     <TextView android:id="@+id/statData" android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="—" android:textColor="@color/text_primary" android:textSize="15sp" android:textStyle="bold" />
                 </LinearLayout>
@@ -271,7 +299,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="STREAM QUALITY"
+                    android:text="@string/stream_quality"
                     android:textColor="@color/text_secondary"
                     android:textSize="11sp"
                     android:textStyle="bold"
@@ -281,7 +309,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="Resolution"
+                    android:text="@string/resolution"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
 
@@ -367,7 +395,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
-                    android:text="Frame rate"
+                    android:text="@string/frame_rate"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
 
@@ -453,7 +481,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
-                    android:text="JPEG quality (MJPEG mode only)"
+                    android:text="@string/jpeg_quality"
                     android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
 
@@ -467,7 +495,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/jpegLow"
-                        android:text="Low"
+                        android:text="@string/jpeg_low"
                         style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -490,7 +518,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/jpegMed"
-                        android:text="Med"
+                        android:text="@string/jpeg_med"
                         style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -513,7 +541,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/jpegHigh"
-                        android:text="High"
+                        android:text="@string/jpeg_high"
                         style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -540,7 +568,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="Changes apply live, even while sharing. Lower values use less bandwidth and CPU."
+                    android:text="@string/quality_hint"
                     android:textColor="@color/text_secondary"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -552,7 +580,7 @@
             android:layout_width="match_parent"
             android:layout_height="58dp"
             android:layout_marginTop="22dp"
-            android:text="Start sharing"
+            android:text="@string/start_sharing"
             android:textSize="17sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF"
@@ -564,7 +592,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:layout_marginBottom="8dp"
-            android:text="No password — anyone on this network can connect while sharing. Use trusted networks only."
+            android:text="@string/no_password_warning"
             android:textColor="@color/text_secondary"
             android:textSize="12sp"
             android:gravity="center" />

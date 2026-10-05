@@ -13,6 +13,8 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:localeConfig="@xml/locales_config"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">
         <!-- configChanges: rotating must not recreate this activity. It owns the server and
              stops sharing in onDestroy, so a recreate would end the session mid-stream. -->
@@ -42,6 +44,16 @@
             android:name=".video.CaptureService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+
+        <!-- Persists the in-app language choice on Android 12 and below (13+ stores it in the system). -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data
+                android:name="autoStoreLocales"
+                android:value="true" />
+        </service>
 
         <receiver
             android:name=".update.InstallResultReceiver"

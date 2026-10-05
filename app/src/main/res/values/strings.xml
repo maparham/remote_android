@@ -1,5 +1,63 @@
 <resources>
     <string name="app_name">LAN Remote</string>
+
+    <!-- Language toggle: label shows the language you switch TO -->
+    <string name="lang_toggle">فا</string>
+    <string name="lang_toggle_desc">Switch to Persian</string>
+    <string name="lang_switch_target">fa</string>
+
+    <!-- Status -->
+    <string name="status_idle">● Idle</string>
+    <string name="status_sharing">● Sharing · %1$s</string>
+
+    <!-- Control warning -->
+    <string name="control_off_title">⚠ Remote control is off</string>
+    <string name="control_off_body">You\'ll see the screen but taps and typing won\'t work. Turn on the LAN Remote accessibility service to enable control.</string>
+    <string name="enable_control">Enable control</string>
+
+    <!-- Connection card -->
+    <string name="open_in_browser">OPEN IN A BROWSER ON THE SAME NETWORK</string>
+    <string name="qr_desc">Connection QR code</string>
+    <string name="scan_to_connect">Scan to connect</string>
+    <string name="share_link">Share link</string>
+    <string name="not_on_lan">⚠ Not on Wi-Fi/LAN — this looks like a cellular address a browser can\'t reach. Connect the phone to Wi-Fi.</string>
+    <string name="share_subject">LAN Remote link</string>
+    <string name="share_text">Control my screen on the same network: %1$s\nOpen it in a browser (works while I\'m sharing).</string>
+    <string name="share_chooser">Share connection link</string>
+
+    <!-- Session card -->
+    <string name="session">SESSION</string>
+    <string name="stat_viewer">Viewer</string>
+    <string name="stat_video">Video</string>
+    <string name="stat_fps">Frame rate</string>
+    <string name="stat_bitrate">Bitrate</string>
+    <string name="stat_audio">Audio</string>
+    <string name="stat_data">Data sent</string>
+    <string name="viewer_connected">Connected</string>
+    <string name="viewer_waiting">Waiting…</string>
+    <string name="audio_on">On</string>
+    <string name="audio_off">Off</string>
+
+    <!-- Stream quality card -->
+    <string name="stream_quality">STREAM QUALITY</string>
+    <string name="resolution">Resolution</string>
+    <string name="frame_rate">Frame rate</string>
+    <string name="jpeg_quality">JPEG quality (MJPEG mode only)</string>
+    <string name="jpeg_low">Low</string>
+    <string name="jpeg_med">Med</string>
+    <string name="jpeg_high">High</string>
+    <string name="quality_hint">Changes apply live, even while sharing. Lower values use less bandwidth and CPU.</string>
+
+    <!-- Bottom -->
+    <string name="start_sharing">Start sharing</string>
+    <string name="stop_sharing">Stop sharing</string>
+    <string name="no_password_warning">No password — anyone on this network can connect while sharing. Use trusted networks only.</string>
+
+    <!-- Notification -->
+    <string name="notif_channel">Screen sharing</string>
+    <string name="notif_text">Screen is being shared on your LAN</string>
+
+    <!-- Update banner -->
     <string name="update_available">LAN Remote v%1$s is available</string>
     <string name="update_reenable_hint">You will need to re-enable the accessibility service after updating.</string>
     <string name="update_action">Update</string>

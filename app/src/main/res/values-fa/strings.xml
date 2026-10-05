@@ -62,4 +62,9 @@
     <string name="update_later">بعداً</string>
     <string name="update_downloading">در حال دانلود… %1$d%%</string>
     <string name="update_installing">در حال باز کردن نصب‌کننده…</string>
+    <string name="update_failed_download">دانلود ناموفق بود. اتصال را بررسی کنید و دوباره تلاش کنید.</string>
+    <string name="update_failed_verify">فایل دانلودشده تأیید نشد.</string>
+    <string name="update_failed_install">نصب به‌روزرسانی ممکن نشد.</string>
+    <string name="update_failed_install_detail">نصب به‌روزرسانی ممکن نشد: %1$s</string>
+    <string name="update_blocked_sharing">برای به‌روزرسانی، اشتراک‌گذاری را متوقف کنید؛ نصب، برنامه را دوباره راه‌اندازی می‌کند.</string>
 </resources>

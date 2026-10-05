@@ -23,6 +23,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.example.lanremote.databinding.ActivityMainBinding
 import com.example.lanremote.server.NetworkUtil
 import com.example.lanremote.server.RemoteServer
+import com.example.lanremote.update.FailReason
 import com.example.lanremote.update.UpdateManager
 import com.example.lanremote.update.UpdateState
 import com.example.lanremote.update.Updates
@@ -153,6 +154,11 @@ class MainActivity : AppCompatActivity() {
         updates.onResume(packageManager.canRequestPackageInstalls())
     }
 
+    override fun onPause() {
+        updates.onPause()
+        super.onPause()
+    }
+
     /** True when the LAN Remote AccessibilityService is enabled (required for taps/typing). */
     private fun isControlEnabled(): Boolean {
         val expected = "$packageName/${com.example.lanremote.control.ControlService::class.java.name}"
@@ -206,15 +212,24 @@ class MainActivity : AppCompatActivity() {
                 ub.laterBtn.isEnabled = false
             }
             is UpdateState.Failed -> {
-                ub.updateMessage.text = s.message
-                ub.updateBtn.isEnabled = true
+                ub.updateMessage.text = when (s.reason) {
+                    FailReason.DOWNLOAD -> getString(R.string.update_failed_download)
+                    FailReason.VERIFY -> getString(R.string.update_failed_verify)
+                    FailReason.INSTALL -> s.detail?.let { getString(R.string.update_failed_install_detail, it) }
+                        ?: getString(R.string.update_failed_install)
+                }
+                ub.updateBtn.isEnabled = !sharing
                 ub.laterBtn.isEnabled = true
             }
             else -> {
                 ub.updateMessage.text = getString(R.string.update_reenable_hint)
-                ub.updateBtn.isEnabled = true
+                ub.updateBtn.isEnabled = !sharing
                 ub.laterBtn.isEnabled = true
             }
+        }
+        // Installing replaces the app process, which would end an active share.
+        if (sharing && (s is UpdateState.Available || s is UpdateState.Failed)) {
+            ub.updateMessage.text = getString(R.string.update_blocked_sharing)
         }
     }
 
@@ -267,6 +282,7 @@ class MainActivity : AppCompatActivity() {
         b.toggle.setText(R.string.stop_sharing)
         b.langBtn.isEnabled = false
         b.langBtn.alpha = 0.4f
+        renderUpdate(updates.state)
         ui.post(poller)
     }
 
@@ -302,6 +318,7 @@ class MainActivity : AppCompatActivity() {
         b.toggle.setText(R.string.start_sharing)
         b.langBtn.isEnabled = true
         b.langBtn.alpha = 1f
+        renderUpdate(updates.state)
         b.statViewer.text = "—"
         b.statVideo.text = "—"
         b.statFps.text = "—"

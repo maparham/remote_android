@@ -73,4 +73,17 @@ class ApkDownloaderTest {
         val out = ApkDownloader.download(sourceUrl(data), dir, "app.apk", null)
         assertTrue(out.exists())
     }
+
+    @Test fun failedDownloadLeavesNoPartialFile() = runBlocking<Unit> {
+        val dir = tmp.newFolder("updates")
+        try {
+            ApkDownloader.download(sourceUrl(data), dir, "app.apk", null) {
+                throw java.io.IOException("connection reset") // fails mid-stream
+            }
+            fail("expected IOException")
+        } catch (e: java.io.IOException) {
+            assertEquals("connection reset", e.message)
+        }
+        assertFalse(File(dir, "app.apk").exists())
+    }
 }

@@ -19,6 +19,7 @@ import com.example.lanremote.databinding.ActivityMainBinding
 import com.example.lanremote.server.NetworkUtil
 import com.example.lanremote.server.RemoteServer
 import com.example.lanremote.video.CaptureService
+import com.example.lanremote.video.QualityPrefs
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -71,7 +72,32 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
         b.shareBtn.setOnClickListener { shareLink() }
+        setupScalePicker()
         renderIdle()
+    }
+
+    private val scaleButtons: Map<Int, Int>
+        get() = mapOf(100 to b.scale100.id, 75 to b.scale75.id, 50 to b.scale50.id)
+
+    /** Stream resolution picker: restores the saved choice and persists changes immediately. */
+    private fun setupScalePicker() {
+        val saved = QualityPrefs.scalePercent(this)
+        scaleButtons[saved]?.let { b.scaleGroup.check(it) }
+        b.scaleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val percent = scaleButtons.entries.firstOrNull { it.value == checkedId }?.key ?: return@addOnButtonCheckedListener
+            QualityPrefs.setScalePercent(this, percent)
+        }
+    }
+
+    /** The service reads the scale once at start, so lock the picker while sharing. */
+    private fun setScalePickerEnabled(enabled: Boolean) {
+        for (i in 0 until b.scaleGroup.childCount) b.scaleGroup.getChildAt(i).isEnabled = enabled
+        b.qualityCard.alpha = if (enabled) 1f else 0.5f
+        b.scaleHint.text = if (enabled)
+            "Lower values use less bandwidth and CPU. Applies when sharing starts."
+        else
+            "Stop sharing to change the resolution."
     }
 
     override fun onResume() {
@@ -135,6 +161,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         b.statsCard.alpha = 1f
+        setScalePickerEnabled(false)
         b.toggle.text = "Stop sharing"
         ui.post(poller)
     }
@@ -172,6 +199,7 @@ class MainActivity : AppCompatActivity() {
         b.qrHint.visibility = android.view.View.GONE
         b.shareBtn.visibility = android.view.View.GONE
         b.statsCard.alpha = 0.5f
+        setScalePickerEnabled(true)
         b.toggle.text = "Start sharing"
         b.statViewer.text = "—"
         b.statVideo.text = "—"

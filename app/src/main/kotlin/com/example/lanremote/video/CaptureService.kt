@@ -54,8 +54,10 @@ class CaptureService : Service() {
         val metrics = DisplayMetrics()
         @Suppress("DEPRECATION")
         (getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.getRealMetrics(metrics)
-        width = metrics.widthPixels
-        height = metrics.heightPixels
+        val percent = QualityPrefs.scalePercent(this)
+        val (w, h) = StreamQuality.scaledSize(metrics.widthPixels, metrics.heightPixels, percent)
+        width = w
+        height = h
         densityDpi = metrics.densityDpi
 
         meta = VideoMeta(width, height)
@@ -107,7 +109,7 @@ class CaptureService : Service() {
     private fun startH264(onFrame: (Boolean, ByteArray) -> Unit): (() -> Unit)? {
         val proj = projection ?: return null
         stopPipeline()
-        val enc = ScreenEncoder(width, height, densityDpi)
+        val enc = ScreenEncoder(width, height, densityDpi, StreamQuality.bitrateFor(width, height))
         enc.start(proj, { }, onFrame)
         pipeline = enc
         return { enc.requestKeyframe() }
@@ -151,7 +153,7 @@ class CaptureService : Service() {
         private const val CHANNEL = "capture"
         private const val NOTIF_ID = 1
 
-        /** Device screen resolution, set once the projection is live. */
+        /** Stream resolution (display size × chosen scale), set once the projection is live. */
         @Volatile var meta: VideoMeta? = null
 
         /** Pipeline control surface for the server; null when not sharing. */

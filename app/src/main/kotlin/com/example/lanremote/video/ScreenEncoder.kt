@@ -12,7 +12,8 @@ import android.view.Surface
 class ScreenEncoder(
     private val width: Int,
     private val height: Int,
-    private val densityDpi: Int
+    private val densityDpi: Int,
+    private val bitrate: Int = 6_000_000
 ) : CapturePipeline {
     private var codec: MediaCodec? = null
     private var surface: Surface? = null
@@ -27,7 +28,7 @@ class ScreenEncoder(
     ) {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-            setInteger(MediaFormat.KEY_BIT_RATE, 6_000_000)
+            setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
             setInteger(MediaFormat.KEY_FRAME_RATE, 30)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
             // Pin baseline profile so the client's avc1.42E01E codec string is honest.

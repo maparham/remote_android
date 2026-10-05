@@ -13,6 +13,14 @@ release/
 # Local config (machine-specific SDK path)
 local.properties
 
+# Release signing (never commit)
+keystore.properties
+*.jks
+*.keystore
+
+# Superpowers plan workspaces (scratch)
+.superpowers/
+
 # Native build
 .cxx/
 .externalNativeBuild/

@@ -2,6 +2,8 @@ package com.example.lanremote
 
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
+import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
@@ -23,6 +25,9 @@ import com.example.lanremote.update.UpdateManager
 import com.example.lanremote.update.UpdateState
 import com.example.lanremote.update.Updates
 import com.example.lanremote.video.CaptureService
+import com.example.lanremote.video.QualityPrefs
+import com.example.lanremote.video.StreamSettings
+import com.google.android.material.button.MaterialButtonToggleGroup
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -82,7 +87,52 @@ class MainActivity : AppCompatActivity() {
         b.updateBanner.updateBtn.setOnClickListener { onUpdateClicked() }
         b.updateBanner.laterBtn.setOnClickListener { updates.dismiss() }
         updates.checkForUpdate()
+        setupQualityPicker()
         renderIdle()
+    }
+
+    private var prefsListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
+    /** True while the pickers are being updated from prefs, so that doesn't echo back as a save. */
+    private var syncingPicker = false
+
+    private val scaleButtons: Map<Int, Int>
+        get() = mapOf(100 to b.scale100.id, 75 to b.scale75.id, 50 to b.scale50.id)
+    private val fpsButtons: Map<Int, Int>
+        get() = mapOf(15 to b.fps15.id, 30 to b.fps30.id, 60 to b.fps60.id)
+    private val jpegButtons: Map<Int, Int>
+        get() = mapOf(40 to b.jpegLow.id, 55 to b.jpegMed.id, 75 to b.jpegHigh.id)
+
+    /**
+     * Stream quality pickers. Changes are saved immediately and the capture service applies
+     * them live. Changes made from a browser show up here through the prefs listener.
+     */
+    private fun setupQualityPicker() {
+        renderSettings(QualityPrefs.load(this))
+        bindPicker(b.scaleGroup, { scaleButtons }) { s, v -> s.copy(scalePercent = v) }
+        bindPicker(b.fpsGroup, { fpsButtons }) { s, v -> s.copy(fps = v) }
+        bindPicker(b.jpegGroup, { jpegButtons }) { s, v -> s.copy(jpegQuality = v) }
+        prefsListener = QualityPrefs.listen(this) { renderSettings(it) }
+    }
+
+    private fun bindPicker(
+        group: MaterialButtonToggleGroup,
+        options: () -> Map<Int, Int>,
+        apply: (StreamSettings, Int) -> StreamSettings
+    ) {
+        group.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked || syncingPicker) return@addOnButtonCheckedListener
+            val value = options().entries.firstOrNull { it.value == checkedId }?.key
+                ?: return@addOnButtonCheckedListener
+            QualityPrefs.save(this, apply(QualityPrefs.load(this), value))
+        }
+    }
+
+    private fun renderSettings(s: StreamSettings) {
+        syncingPicker = true
+        scaleButtons[s.scalePercent]?.let { b.scaleGroup.check(it) }
+        fpsButtons[s.fps]?.let { b.fpsGroup.check(it) }
+        jpegButtons[s.jpegQuality]?.let { b.jpegGroup.check(it) }
+        syncingPicker = false
     }
 
     override fun onResume() {
@@ -158,7 +208,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestConsent() {
         val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        projectionLauncher.launch(mpm.createScreenCaptureIntent())
+        // Android 14+: ask for the whole display so the consent dialog skips the
+        // "Share one app / Share entire screen" choice. Remote control needs the full screen,
+        // and users who can't read the dialog's language shouldn't have to pick an option.
+        val intent = if (Build.VERSION.SDK_INT >= 34) {
+            mpm.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay())
+        } else {
+            mpm.createScreenCaptureIntent()
+        }
+        projectionLauncher.launch(intent)
     }
 
     private fun startSharing(code: Int, data: Intent) {
@@ -298,6 +356,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         updates.removeObserver(updateRenderer)
+        prefsListener?.let { QualityPrefs.unlisten(this, it) }
         ui.removeCallbacks(poller)
         if (sharing) stopSharing()
         super.onDestroy()

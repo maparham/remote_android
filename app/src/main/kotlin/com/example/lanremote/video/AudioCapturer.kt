@@ -17,7 +17,7 @@ import io.github.jaredmdobson.concentus.OpusEncoder
  * Only media/game/unknown-usage audio from apps that permit playback capture is available;
  * voice calls and apps that opt out (allowAudioPlaybackCapture=false) are silent by OS policy.
  */
-class AudioCapturer(private val projection: MediaProjection) : CapturePipeline {
+class AudioCapturer(private val projection: MediaProjection) {
 
     private var record: AudioRecord? = null
     private var thread: Thread? = null
@@ -78,7 +78,7 @@ class AudioCapturer(private val projection: MediaProjection) : CapturePipeline {
         }.also { it.start() }
     }
 
-    override fun stop() {
+    fun stop() {
         running = false
         thread?.join(500)
         try { record?.stop(); record?.release() } catch (_: Exception) {}

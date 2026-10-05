@@ -14,8 +14,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        <!-- configChanges: rotating must not recreate this activity. It owns the server and
+             stops sharing in onDestroy, so a recreate would end the session mid-stream. -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

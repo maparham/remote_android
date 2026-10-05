@@ -2,6 +2,7 @@ package com.example.lanremote.control
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.float
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
@@ -18,6 +19,8 @@ sealed interface ControlEvent {
     ) : ControlEvent
     data class Key(val action: KeyAction) : ControlEvent
     data class Text(val value: String) : ControlEvent
+    /** Stream-settings change from the viewer; null fields are left unchanged. */
+    data class Quality(val scale: Int?, val fps: Int?, val jpegQuality: Int?) : ControlEvent
 }
 
 object ControlEventParser {
@@ -50,6 +53,11 @@ object ControlEventParser {
                 else -> null
             }
             "text" -> obj["value"]?.jsonPrimitive?.content?.let { ControlEvent.Text(it) }
+            "quality" -> ControlEvent.Quality(
+                scale = obj["scale"]?.jsonPrimitive?.intOrNull,
+                fps = obj["fps"]?.jsonPrimitive?.intOrNull,
+                jpegQuality = obj["jpegQuality"]?.jsonPrimitive?.intOrNull
+            )
             else -> null
         }
     } catch (e: Exception) {

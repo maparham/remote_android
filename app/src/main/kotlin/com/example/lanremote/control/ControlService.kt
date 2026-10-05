@@ -7,6 +7,7 @@ import android.graphics.Path
 import android.os.Bundle
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.example.lanremote.video.DisplayInfo
 
 class ControlService : AccessibilityService() {
 
@@ -28,7 +29,17 @@ class ControlService : AccessibilityService() {
         dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
     }
 
-    private fun handle(event: ControlEvent, mapper: CoordinateMapper) {
+    /**
+     * Maps normalized viewer coordinates onto the real screen in its current rotation. The
+     * stream may be scaled down or rotated, so its size must never be used here.
+     */
+    private fun currentMapper(): CoordinateMapper {
+        val size = DisplayInfo.real(this)
+        return CoordinateMapper(size.width, size.height)
+    }
+
+    private fun handle(event: ControlEvent) {
+        val mapper = currentMapper()
         when (event) {
             is ControlEvent.Tap -> {
                 val (x, y) = mapper.toPixels(event.x, event.y)
@@ -70,6 +81,8 @@ class ControlService : AccessibilityService() {
                 }
                 node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
             }
+            // Stream settings are handled by the server, not by input injection.
+            is ControlEvent.Quality -> Unit
         }
     }
 
@@ -83,8 +96,8 @@ class ControlService : AccessibilityService() {
         @Volatile
         var instance: ControlService? = null
 
-        fun dispatch(event: ControlEvent, mapper: CoordinateMapper) {
-            instance?.handle(event, mapper)
+        fun dispatch(event: ControlEvent) {
+            instance?.handle(event)
         }
     }
 }

@@ -15,13 +15,15 @@ class UpdateManagerTest {
     private var downloads = 0
     private var installs = 0
     private var downloadError: Exception? = null
+    private var installError: Exception? = null
+    private var latest: ReleaseInfo? = release
     private var downloadGate: CompletableDeferred<Unit>? = null // set to pause mid-download
 
     // Unconfined runs each launch inline, so the flow is synchronous in tests.
     private fun manager() = UpdateManager(
         scope = CoroutineScope(Dispatchers.Unconfined),
         installedVersion = "0.1",
-        fetchLatest = { fetches++; release },
+        fetchLatest = { fetches++; latest },
         download = { _, progress ->
             downloads++
             downloadError?.let { throw it }
@@ -29,7 +31,7 @@ class UpdateManagerTest {
             downloadGate?.await()
             File("a.apk")
         },
-        install = { installs++ },
+        install = { installs++; installError?.let { throw it } },
     )
 
     /** Records every state an observer sees. */
@@ -127,7 +129,7 @@ class UpdateManagerTest {
         val m = manager()
         m.checkForUpdate()
         m.update()
-        assertEquals(UpdateState.Failed(release, "Download failed"), m.state)
+        assertEquals(UpdateState.Failed(release, FailReason.DOWNLOAD), m.state)
         assertFalse(installs > 0)
     }
 
@@ -136,7 +138,7 @@ class UpdateManagerTest {
         val m = manager()
         m.checkForUpdate()
         m.update()
-        assertEquals(UpdateState.Failed(release, "Downloaded file failed verification"), m.state)
+        assertEquals(UpdateState.Failed(release, FailReason.VERIFY), m.state)
     }
 
     @Test fun retryAfterFailureDownloadsAgain() {
@@ -148,5 +150,73 @@ class UpdateManagerTest {
         m.update()
         assertEquals(2, downloads)
         assertEquals(UpdateState.Installing(release), m.state)
+    }
+
+    @Test fun installErrorIsNotReportedAsDownloadFailure() {
+        installError = IOException("no space")
+        val m = manager()
+        m.checkForUpdate()
+        m.update()
+        assertEquals(UpdateState.Failed(release, FailReason.INSTALL), m.state)
+    }
+
+    @Test fun failedCheckIsRetriedOnNextCall() {
+        latest = null // offline at launch
+        val m = manager()
+        m.checkForUpdate()
+        assertEquals(UpdateState.Idle, m.state)
+        latest = release
+        m.checkForUpdate()
+        assertEquals(UpdateState.Available(release), m.state)
+        m.checkForUpdate()
+        assertEquals(2, fetches) // no more fetches once one succeeded
+    }
+
+    @Test fun installerFailureShowsInBanner() {
+        val m = manager()
+        m.checkForUpdate()
+        m.update()
+        m.onInstallFailed("INSTALL_FAILED_UPDATE_INCOMPATIBLE")
+        assertEquals(UpdateState.Failed(release, FailReason.INSTALL, "INSTALL_FAILED_UPDATE_INCOMPATIBLE"), m.state)
+    }
+
+    @Test fun installerResultIgnoredWhenNotInstalling() {
+        val m = manager()
+        m.checkForUpdate()
+        m.onInstallFailed("x") // e.g. a fresh process that never started this install
+        m.onInstallCancelled()
+        assertEquals(UpdateState.Available(release), m.state)
+    }
+
+    @Test fun installerCancelReturnsToAvailable() {
+        val m = manager()
+        m.checkForUpdate()
+        m.update()
+        m.onInstallCancelled()
+        assertEquals(UpdateState.Available(release), m.state)
+    }
+
+    @Test fun confirmLaunchesImmediatelyWhileVisible() {
+        val m = manager()
+        var launched = 0
+        m.onResume(canInstall = true)
+        m.onConfirmRequired { launched++ }
+        assertEquals(1, launched)
+    }
+
+    @Test fun confirmWaitsUntilAppIsVisibleAgain() {
+        val m = manager()
+        m.checkForUpdate()
+        m.onResume(canInstall = true)
+        m.update()
+        m.onPause() // user switched apps during the download
+        var launched = 0
+        m.onConfirmRequired { launched++ }
+        assertEquals(0, launched) // a background activity start would be blocked
+        m.onResume(canInstall = true)
+        assertEquals(1, launched)
+        assertEquals(UpdateState.Installing(release), m.state) // not reset: the installer is showing
+        m.onResume(canInstall = true)
+        assertEquals(1, launched)
     }
 }

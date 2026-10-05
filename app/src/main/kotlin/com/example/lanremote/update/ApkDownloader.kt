@@ -6,6 +6,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 
@@ -18,7 +19,8 @@ object ApkDownloader {
 
     /**
      * Streams [url] into [dir]/[fileName], clearing [dir] first, hashing as it goes.
-     * Throws [DigestMismatchException] (file deleted) when [expectedSha256] is set and differs.
+     * Throws [DigestMismatchException] (file deleted) when [expectedSha256] is set and differs,
+     * and IOException on an HTTP error; a failed download never leaves a partial file.
      * [onProgress] receives 0..100 on the IO thread; if the length is unknown only 100 at the end.
      */
     suspend fun download(
@@ -37,30 +39,39 @@ object ApkDownloader {
             readTimeout = 30_000
             setRequestProperty("User-Agent", "LAN-Remote-Android")
         }
-        val total = conn.contentLengthLong
         val md = MessageDigest.getInstance("SHA-256")
-        var done = 0L
-        var lastPct = -1
-
-        conn.getInputStream().use { input ->
-            dest.outputStream().use { out ->
-                val buf = ByteArray(64 * 1024)
-                while (true) {
-                    coroutineContext.ensureActive() // stop promptly if the update is cancelled
-                    val n = input.read(buf)
-                    if (n < 0) break
-                    out.write(buf, 0, n)
-                    md.update(buf, 0, n)
-                    done += n
-                    if (total > 0) {
-                        val pct = (done * 100 / total).toInt().coerceIn(0, 99)
-                        if (pct != lastPct) {
-                            lastPct = pct
-                            onProgress(pct)
+        try {
+            if (conn is HttpURLConnection && conn.responseCode !in 200..299) {
+                throw IOException("HTTP ${conn.responseCode} for $url")
+            }
+            val total = conn.contentLengthLong
+            var done = 0L
+            var lastPct = -1
+            conn.getInputStream().use { input ->
+                dest.outputStream().use { out ->
+                    val buf = ByteArray(64 * 1024)
+                    while (true) {
+                        coroutineContext.ensureActive() // stop promptly if the update is cancelled
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        md.update(buf, 0, n)
+                        done += n
+                        if (total > 0) {
+                            val pct = (done * 100 / total).toInt().coerceIn(0, 99)
+                            if (pct != lastPct) {
+                                lastPct = pct
+                                onProgress(pct)
+                            }
                         }
                     }
                 }
             }
+        } catch (t: Throwable) {
+            dest.delete() // includes cancellation
+            throw t
+        } finally {
+            (conn as? HttpURLConnection)?.disconnect()
         }
         onProgress(100)
 

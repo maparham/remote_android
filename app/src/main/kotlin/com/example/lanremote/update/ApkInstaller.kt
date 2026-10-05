@@ -14,6 +14,8 @@ object ApkInstaller {
     /** Blocking: copies [apk] into a session and commits it. The OS then shows its confirmation UI. */
     fun install(context: Context, apk: File) {
         val installer = context.packageManager.packageInstaller
+        // Each retry stages a full APK copy; drop earlier sessions the user never confirmed.
+        installer.mySessions.forEach { runCatching { installer.abandonSession(it.sessionId) } }
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         params.setSize(apk.length())
         val sessionId = installer.createSession(params)

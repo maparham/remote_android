@@ -17,17 +17,23 @@ object ApkInstaller {
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
         params.setSize(apk.length())
         val sessionId = installer.createSession(params)
-        installer.openSession(sessionId).use { session ->
-            session.openWrite("lanremote.apk", 0, apk.length()).use { out ->
-                apk.inputStream().use { it.copyTo(out) }
-                session.fsync(out)
+        try {
+            installer.openSession(sessionId).use { session ->
+                session.openWrite("lanremote.apk", 0, apk.length()).use { out ->
+                    apk.inputStream().use { it.copyTo(out) }
+                    session.fsync(out)
+                }
+                val intent = Intent(context, InstallResultReceiver::class.java).setAction(ACTION_INSTALL_RESULT)
+                val mutable = if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
+                val pending = PendingIntent.getBroadcast(
+                    context, sessionId, intent, PendingIntent.FLAG_UPDATE_CURRENT or mutable
+                )
+                session.commit(pending.intentSender)
             }
-            val intent = Intent(context, InstallResultReceiver::class.java).setAction(ACTION_INSTALL_RESULT)
-            val mutable = if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
-            val pending = PendingIntent.getBroadcast(
-                context, sessionId, intent, PendingIntent.FLAG_UPDATE_CURRENT or mutable
-            )
-            session.commit(pending.intentSender)
+        } catch (t: Throwable) {
+            // Don't leave a half-written staged session behind (e.g. storage full).
+            installer.abandonSession(sessionId)
+            throw t
         }
     }
 }

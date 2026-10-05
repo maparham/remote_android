@@ -3,6 +3,7 @@ package com.example.lanremote
 import android.content.Context
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -15,12 +16,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.lifecycle.lifecycleScope
 import com.example.lanremote.databinding.ActivityMainBinding
 import com.example.lanremote.server.NetworkUtil
 import com.example.lanremote.server.RemoteServer
 import com.example.lanremote.update.UpdateManager
 import com.example.lanremote.update.UpdateState
+import com.example.lanremote.update.Updates
 import com.example.lanremote.video.CaptureService
 import java.util.Locale
 
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity() {
     private var server: RemoteServer? = null
     private var sharing = false
     private lateinit var updates: UpdateManager
+    private val updateRenderer: (UpdateState) -> Unit = { renderUpdate(it) }
     private val port = 8080
 
     private val ui = Handler(Looper.getMainLooper())
@@ -75,8 +77,9 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
         b.shareBtn.setOnClickListener { shareLink() }
-        updates = UpdateManager(this, lifecycleScope, ::renderUpdate)
-        b.updateBanner.updateBtn.setOnClickListener { updates.update() }
+        updates = Updates.get(this)
+        updates.observe(updateRenderer)
+        b.updateBanner.updateBtn.setOnClickListener { onUpdateClicked() }
         b.updateBanner.laterBtn.setOnClickListener { updates.dismiss() }
         updates.checkForUpdate()
         renderIdle()
@@ -85,7 +88,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshControlState()
-        updates.onResume()
+        updates.onResume(packageManager.canRequestPackageInstalls())
     }
 
     /** True when the LAN Remote AccessibilityService is enabled (required for taps/typing). */
@@ -104,6 +107,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshControlState() {
         b.controlWarn.visibility = if (isControlEnabled()) View.GONE else View.VISIBLE
+    }
+
+    /** Sends the user to grant "install unknown apps" first if needed; the manager resumes on return. */
+    private fun onUpdateClicked() {
+        if (packageManager.canRequestPackageInstalls()) {
+            updates.update()
+        } else {
+            updates.awaitPermission()
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
+            )
+        }
     }
 
     private fun renderUpdate(s: UpdateState) {
@@ -282,6 +297,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        updates.removeObserver(updateRenderer)
         ui.removeCallbacks(poller)
         if (sharing) stopSharing()
         super.onDestroy()

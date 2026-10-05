@@ -2,6 +2,7 @@ package com.example.lanremote.update
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -45,6 +46,7 @@ object ApkDownloader {
             dest.outputStream().use { out ->
                 val buf = ByteArray(64 * 1024)
                 while (true) {
+                    coroutineContext.ensureActive() // stop promptly if the update is cancelled
                     val n = input.read(buf)
                     if (n < 0) break
                     out.write(buf, 0, n)

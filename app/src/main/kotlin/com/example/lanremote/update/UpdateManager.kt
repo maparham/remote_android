@@ -1,36 +1,49 @@
 package com.example.lanremote.update
 
-import android.app.Activity
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import android.util.Log
-import com.example.lanremote.BuildConfig
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
- * Drives the update flow for [MainActivity]: check on launch, download + verify, hand to installer.
- * [scope] must dispatch on the main thread (use `lifecycleScope`); [onState] is called on it.
+ * The update flow: check once per process, download + verify, hand to the installer.
+ *
+ * Lives for the whole process (see [Updates]), not per Activity, so "Later", a running
+ * download and a pending permission round-trip survive rotation and other recreation.
+ * [scope] must dispatch on the main thread; observers are called on it.
  */
 class UpdateManager(
-    private val activity: Activity,
     private val scope: CoroutineScope,
-    private val onState: (UpdateState) -> Unit,
-    private val installedVersion: String = BuildConfig.VERSION_NAME,
-    private val checker: UpdateChecker = UpdateChecker(),
+    private val installedVersion: String,
+    private val fetchLatest: suspend () -> ReleaseInfo?,
+    private val download: suspend (ReleaseInfo, (Int) -> Unit) -> File,
+    private val install: suspend (File) -> Unit,
 ) {
     var state: UpdateState = UpdateState.Idle
         private set
+    private var observer: ((UpdateState) -> Unit)? = null
+    private var checked = false
     private var dismissed = false
-    private var resumeAfterPermission = false
+    private var awaitingPermission = false
 
-    /** Fetch the latest release in the background; shows the banner only if it is newer. */
+    /** Attach the visible Activity's renderer; it receives the current state immediately. */
+    fun observe(listener: (UpdateState) -> Unit) {
+        observer = listener
+        listener(state)
+    }
+
+    /** Detach [listener] if it is still the current observer. */
+    fun removeObserver(listener: (UpdateState) -> Unit) {
+        if (observer === listener) observer = null
+    }
+
+    /** Fetch the latest release once per process; shows the banner only if it is newer. */
     fun checkForUpdate() {
+        if (checked) return
+        checked = true
         scope.launch {
-            val info = checker.fetchLatest() ?: return@launch
+            val info = fetchLatest() ?: return@launch
             if (!dismissed && UpdateChecker.isNewer(info, installedVersion)) {
                 set(UpdateState.Available(info))
             }
@@ -43,24 +56,29 @@ class UpdateManager(
         set(UpdateState.Idle)
     }
 
-    /** "Update": ensure install permission, then download, verify and install. */
+    /** The user was sent to the unknown-sources settings screen; continue on return if granted. */
+    fun awaitPermission() {
+        awaitingPermission = true
+    }
+
+    /** "Update" with install permission already granted: download, verify and install. */
     fun update() {
-        val info = state.info ?: return
-        if (!activity.packageManager.canRequestPackageInstalls()) {
-            resumeAfterPermission = true
-            activity.startActivity(
-                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${activity.packageName}"))
-            )
-            return
+        val info = when (val s = state) {
+            is UpdateState.Available -> s.info
+            is UpdateState.Failed -> s.info
+            else -> return // idle, or already downloading/installing
         }
         scope.launch {
             set(UpdateState.Downloading(info, 0))
             try {
-                val file = ApkDownloader.download(
-                    info.apkUrl, ApkDownloader.cacheDir(activity), info.apkName, info.sha256
-                ) { pct -> scope.launch { set(UpdateState.Downloading(info, pct)) } }
+                val file = download(info) { pct ->
+                    // Progress is posted from the IO thread; drop it if the download already ended.
+                    scope.launch { if (state is UpdateState.Downloading) set(UpdateState.Downloading(info, pct)) }
+                }
                 set(UpdateState.Installing(info))
-                withContext(Dispatchers.IO) { ApkInstaller.install(activity, file) }
+                install(file)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: DigestMismatchException) {
                 Log.w(TAG, "verification failed: $e")
                 set(UpdateState.Failed(info, "Downloaded file failed verification"))
@@ -71,20 +89,23 @@ class UpdateManager(
         }
     }
 
-    /** Call from Activity.onResume: continues after the permission screen; resets after installer dismissal. */
-    fun onResume() {
-        if (resumeAfterPermission && activity.packageManager.canRequestPackageInstalls()) {
-            resumeAfterPermission = false
-            update()
+    /** Call from Activity.onResume with `packageManager.canRequestPackageInstalls()`. */
+    fun onResume(canInstall: Boolean) {
+        if (awaitingPermission) {
+            if (canInstall) {
+                awaitingPermission = false
+                update()
+            }
             return
         }
+        // Back from the system install dialog without the app being replaced: offer again.
         val s = state
         if (s is UpdateState.Installing) set(UpdateState.Available(s.info))
     }
 
     private fun set(s: UpdateState) {
         state = s
-        onState(s)
+        observer?.invoke(s)
     }
 
     private companion object { const val TAG = "UpdateManager" }

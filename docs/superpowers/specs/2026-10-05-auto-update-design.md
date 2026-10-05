@@ -40,8 +40,8 @@ install silently, so "auto" means: automatic *check* on launch, one-tap
      indicator in the banner (button disabled, percentage text).
    - Verify the SHA-256 against the asset `digest` from the API.
    - Hand the file to a `PackageInstaller` session and commit it. Android
-     shows its confirmation dialog, then installs and relaunches nothing; the
-     user reopens the app.
+     shows its confirmation dialog and installs. The app is not relaunched
+     automatically; the user reopens it.
 5. Installer cancellation: nothing happens; the banner stays with the Update
    button re-enabled.
 
@@ -156,9 +156,9 @@ users must uninstall once. Mention this in that release's notes.
   longer/shorter, non-numeric), `parseRelease` (normal, no apk asset, missing
   digest, prerelease).
 - Manual end-to-end: install a build with `versionName=0.1`, publish a test
-  release `v0.1.1` (can be a draft deleted afterwards; drafts are not returned
-  by `releases/latest`, so use a real release), launch, confirm banner,
-  Update, confirm dialog, verify new version runs.
+  release `v0.1.1` (a real, non-draft release: drafts are not returned by
+  `releases/latest`; delete it afterwards), launch, confirm banner, Update,
+  confirm dialog, verify the new version runs.
 
 ## Out of scope
 

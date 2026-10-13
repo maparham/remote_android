@@ -12,7 +12,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
-import android.text.TextUtils
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +20,9 @@ import androidx.core.os.LocaleListCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.lanremote.databinding.ActivityMainBinding
+import com.example.lanremote.control.ControlService
+import com.example.lanremote.control.ControlState
+import com.example.lanremote.control.ReenablePrompt
 import com.example.lanremote.server.NetworkUtil
 import com.example.lanremote.server.RemoteServer
 import com.example.lanremote.update.FailReason
@@ -31,6 +33,7 @@ import com.example.lanremote.video.CaptureService
 import com.example.lanremote.video.QualityPrefs
 import com.example.lanremote.video.StreamSettings
 import com.google.android.material.button.MaterialButtonToggleGroup
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -94,6 +97,7 @@ class MainActivity : AppCompatActivity() {
         if (!BuildConfig.DEBUG) updates.checkForUpdate()
         setupQualityPicker()
         renderIdle()
+        maybeShowReenableDialog()
     }
 
     /**
@@ -162,20 +166,42 @@ class MainActivity : AppCompatActivity() {
 
     /** True when the LAN Remote AccessibilityService is enabled (required for taps/typing). */
     private fun isControlEnabled(): Boolean {
-        val expected = "$packageName/${com.example.lanremote.control.ControlService::class.java.name}"
         val enabled = Settings.Secure.getString(
             contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        ) ?: return false
-        val splitter = TextUtils.SimpleStringSplitter(':')
-        splitter.setString(enabled)
-        for (component in splitter) {
-            if (component.equals(expected, ignoreCase = true)) return true
-        }
-        return false
+        )
+        return ControlState.isEnabled(enabled, packageName, ControlService::class.java.name)
     }
 
     private fun refreshControlState() {
         b.controlWarn.visibility = if (isControlEnabled()) View.GONE else View.VISIBLE
+    }
+
+    /**
+     * After an update Android switches the accessibility service off, so control silently
+     * stops working. Show a one-time dialog with the exact steps to turn it back on.
+     * Fresh installs skip it (the warning card below is enough there).
+     */
+    private fun maybeShowReenableDialog() {
+        val prefs = getSharedPreferences(PREFS_APP, Context.MODE_PRIVATE)
+        val last = prefs.getInt(KEY_LAST_VERSION, ReenablePrompt.NO_VERSION)
+        val shownFor = prefs.getInt(KEY_REENABLE_SHOWN_FOR, ReenablePrompt.NO_VERSION)
+        val current = BuildConfig.VERSION_CODE
+        val show = ReenablePrompt.shouldShow(last, current, isControlEnabled(), shownFor)
+        prefs.edit()
+            .putInt(KEY_LAST_VERSION, current)
+            .apply()
+        if (!show) return
+        prefs.edit()
+            .putInt(KEY_REENABLE_SHOWN_FOR, current)
+            .apply()
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.control_reenable_title)
+            .setMessage(R.string.control_reenable_body)
+            .setPositiveButton(R.string.enable_control) { _, _ ->
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            .setNegativeButton(R.string.update_later, null)
+            .show()
     }
 
     /** Sends the user to grant "install unknown apps" first if needed; the manager resumes on return. */
@@ -390,5 +416,11 @@ class MainActivity : AppCompatActivity() {
         ui.removeCallbacks(poller)
         if (sharing) stopSharing()
         super.onDestroy()
+    }
+
+    private companion object {
+        const val PREFS_APP = "app"
+        const val KEY_LAST_VERSION = "last_version_code"
+        const val KEY_REENABLE_SHOWN_FOR = "reenable_shown_for"
     }
 }

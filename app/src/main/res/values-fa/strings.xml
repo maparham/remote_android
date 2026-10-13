@@ -12,6 +12,9 @@
     <string name="control_off_title">⚠ کنترل از راه دور خاموش است</string>
     <string name="control_off_body">صفحه را می‌بینید، اما لمس و تایپ کار نمی‌کند. برای فعال کردن کنترل، سرویس دسترس‌پذیری LAN Remote را روشن کنید.</string>
     <string name="enable_control">فعال کردن کنترل</string>
+    <!-- Shown once after an update while the accessibility service is still off -->
+    <string name="control_reenable_title">کنترل از راه دور با به‌روزرسانی خاموش شد</string>
+    <string name="control_reenable_body">اندروید بعد از هر به‌روزرسانی، سرویس دسترس‌پذیری را خاموش می‌کند.\n\n۱. روی «فعال کردن» زیر بزنید.\n۲. در فهرست، LAN Remote را انتخاب کنید.\n۳. کلید را روشن کنید.\n۴. به اینجا برگردید — هشدار زرد باید حذف شده باشد.</string>
 
     <!-- Connection card -->
     <string name="open_in_browser">در مرورگری روی همین شبکه باز کنید</string>

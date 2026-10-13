@@ -14,6 +14,9 @@
     <string name="control_off_title">⚠ Remote control is off</string>
     <string name="control_off_body">You\'ll see the screen but taps and typing won\'t work. Turn on the LAN Remote accessibility service to enable control.</string>
     <string name="enable_control">Enable control</string>
+    <!-- Shown once after an update while the accessibility service is still off -->
+    <string name="control_reenable_title">Remote control turned off by the update</string>
+    <string name="control_reenable_body">Android turns off the accessibility service every time the app updates.\n\n1. Tap Enable below.\n2. Tap LAN Remote in the list.\n3. Turn the switch on.\n4. Come back here — the yellow warning should be gone.</string>
 
     <!-- Connection card -->
     <string name="open_in_browser">OPEN IN A BROWSER ON THE SAME NETWORK</string>
